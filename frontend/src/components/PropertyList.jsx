@@ -26,7 +26,14 @@ function PropertyList({ properties, filters }) {
         }).format(params.value);
       }
     },
-    { field: 'listingType', headerName: 'Type', width: 130 },
+    { 
+      field: 'listingType', 
+      headerName: 'Property Type', 
+      width: 130,
+      valueFormatter: (params) => {
+        return params.value === 'on-market' ? 'Listed' : 'Off Market';
+      }
+    },
     { field: 'waterAccess', headerName: 'Water Access', width: 130 },
     { field: 'wastewaterAccess', headerName: 'Wastewater', width: 130 },
     {
@@ -49,7 +56,10 @@ function PropertyList({ properties, filters }) {
     if (filters.state && property.state !== filters.state) return false;
     if (filters.priceRange[1] && property.price > filters.priceRange[1]) return false;
     if (filters.priceRange[0] && property.price < filters.priceRange[0]) return false;
-    if (filters.listingType !== 'all' && property.listingType !== filters.listingType) return false;
+    if (filters.propertyType !== 'all') {
+      const expectedType = filters.propertyType === 'listed' ? 'on-market' : filters.propertyType;
+      if (property.listingType !== expectedType) return false;
+    }
     
     // Check water issues
     if (filters.waterIssues.length > 0) {

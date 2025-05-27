@@ -5,6 +5,12 @@ const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const propertyScraper = require('./services/scraper');
 const MapUsage = require('./models/MapUsage');
+const testProperties = require('./data/testProperties'); // Import test properties
+const { 
+  STATE_ASSESSOR_URLS, 
+  DEFAULT_ASSESSOR_URL,
+  MIN_PROPERTIES_THRESHOLD 
+} = require('./config/constants'); // Import backend constants
 require('dotenv').config();
 
 const app = express();
@@ -28,7 +34,61 @@ const Property = require('./models/Property');
 app.get('/api/properties', async (req, res) => {
   try {
     const properties = await Property.find().sort({ lastUpdated: -1 });
-    res.json(properties);
+    console.log('Found properties:', properties.length);
+    
+    // Add assessor URLs to existing properties if they don't have them
+    const updatedProperties = properties.map(property => {
+      const propertyObj = property.toObject();
+      
+      // Add assessor URL based on the property's state/location
+      if (!propertyObj.assessorUrl) {
+        propertyObj.assessorUrl = STATE_ASSESSOR_URLS[propertyObj.address?.state] || DEFAULT_ASSESSOR_URL;
+      }
+      
+      return propertyObj;
+    });
+    
+    if (properties.length < MIN_PROPERTIES_THRESHOLD) { // Use constant for threshold
+      // Add realistic test properties for water investment
+      // testProperties array is now imported
+
+      // Add properties to database if they don't exist
+      for (const testProp of testProperties) {
+        const existingProp = await Property.findOne({ 
+          'address.street': testProp.address.street,
+          'address.city': testProp.address.city 
+        });
+        
+        if (!existingProp) {
+          const newProperty = new Property(testProp);
+          await newProperty.save();
+          console.log(`Added property: ${testProp.address.street}, ${testProp.address.city}, ${testProp.address.state}`);
+          
+          // Add assessor URL based on state
+          const propertyObj = newProperty.toObject();
+          propertyObj.assessorUrl = STATE_ASSESSOR_URLS[testProp.address.state] || DEFAULT_ASSESSOR_URL;
+          
+          updatedProperties.push(propertyObj);
+        }
+      }
+      
+      // Refresh the properties list to include newly added ones
+      const allProperties = await Property.find().sort({ lastUpdated: -1 });
+      const finalProperties = allProperties.map(property => {
+        const propertyObj = property.toObject();
+        
+        // Add assessor URL based on state
+        if (!propertyObj.assessorUrl) {
+          propertyObj.assessorUrl = STATE_ASSESSOR_URLS[propertyObj.address?.state] || DEFAULT_ASSESSOR_URL;
+        }
+        
+        return propertyObj;
+      });
+      
+      res.json(finalProperties);
+    } else {
+      res.json(updatedProperties);
+    }
   } catch (error) {
     console.error('Error fetching properties:', error);
     res.status(500).json({ error: 'Failed to fetch properties' });

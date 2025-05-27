@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import React from 'react';
 import {
+  Box,
   Paper,
   Typography,
   FormControl,
@@ -7,169 +8,158 @@ import {
   Select,
   MenuItem,
   Slider,
-  FormGroup,
   FormControlLabel,
   Checkbox,
-  Box,
+  FormGroup,
+  Chip,
+  OutlinedInput
 } from '@mui/material';
+import { 
+  TARGET_STATES, 
+  PRICE_RANGE_MAX,
+  SPECIFIC_CHALLENGES
+} from '../constants';
 
-const states = [
-  'Washington',
-  'Oregon',
-  'California',
-  'Arizona',
-  'Utah',
-  'Idaho',
-  'Nevada'
-];
-
-const waterIssues = [
-  'No Municipal Water',
-  'No Well Access',
-  'No Water Rights',
-  'Insufficient Water Supply'
-];
-
-const wastewaterIssues = [
-  'No Municipal Sewer',
-  'No Septic System',
-  'Septic System Issues',
-  'Wastewater Treatment Required'
-];
-
-const environmentalIssues = [
-  'Water Quality Issues',
-  'Environmental Restrictions',
-  'Protected Areas',
-  'Flood Risk'
-];
-
-function FilterPanel({ filters, setFilters }) {
+const FilterPanel = ({ filters, setFilters }) => {
   const handleStateChange = (event) => {
     setFilters({ ...filters, state: event.target.value });
   };
 
-  const handlePriceChange = (event, newValue) => {
+  const handlePriceRangeChange = (event, newValue) => {
     setFilters({ ...filters, priceRange: newValue });
   };
 
-  const handleListingTypeChange = (event) => {
-    setFilters({ ...filters, listingType: event.target.value });
+  const handlePropertyTypeChange = (event) => {
+    setFilters({ ...filters, propertyType: event.target.value });
   };
 
-  const handleIssueChange = (category) => (event) => {
-    const { checked, name } = event.target;
-    setFilters({
-      ...filters,
-      [category]: checked
-        ? [...filters[category], name]
-        : filters[category].filter(item => item !== name)
+  const handleNoWaterAccessChange = (event) => {
+    setFilters({ ...filters, noWaterAccess: event.target.checked });
+  };
+
+  const handleNoWastewaterAccessChange = (event) => {
+    setFilters({ ...filters, noWastewaterAccess: event.target.checked });
+  };
+
+  const handleSpecificChallengeChange = (challengeKey) => (event) => {
+    setFilters(prevFilters => {
+      const currentChallenges = prevFilters.specificChallenges || [];
+      let newChallenges;
+      if (event.target.checked) {
+        newChallenges = [...currentChallenges, SPECIFIC_CHALLENGES[challengeKey]];
+      } else {
+        newChallenges = currentChallenges.filter(c => c !== SPECIFIC_CHALLENGES[challengeKey]);
+      }
+      return { ...prevFilters, specificChallenges: newChallenges };
     });
   };
 
+  const formatPrice = (value) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
+    return `$${(value / 1000).toFixed(0)}K`;
+  };
+
   return (
-    <Paper sx={{ p: 2, width: 300 }}>
-      <Typography variant="h6" gutterBottom>
+    <Paper 
+      sx={{ 
+        width: 300, 
+        p: 2, 
+        height: '100%', 
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        borderRadius: 0,
+        boxShadow: 2,
+        boxSizing: 'border-box'
+      }}
+    >
+      <Typography variant="h6" gutterBottom sx={{ wordBreak: 'break-word', maxWidth: '100%' }}>
         Filters
       </Typography>
 
-      <FormControl fullWidth sx={{ mb: 2 }}>
+      {/* State Filter */}
+      <FormControl fullWidth sx={{ mb: 2, maxWidth: '100%' }}>
         <InputLabel>State</InputLabel>
         <Select
           value={filters.state}
           label="State"
           onChange={handleStateChange}
+          sx={{ maxWidth: '100%', minWidth: 0 }}
         >
-          <MenuItem value="">All States</MenuItem>
-          {states.map(state => (
+          <MenuItem value="">All Target States</MenuItem>
+          {TARGET_STATES.map((state) => (
             <MenuItem key={state} value={state}>{state}</MenuItem>
           ))}
         </Select>
       </FormControl>
 
-      <Box sx={{ mb: 2 }}>
-        <Typography gutterBottom>Price Range</Typography>
+      {/* Price Range Filter */}
+      <Box sx={{ mb: 3, maxWidth: '100%', minWidth: 0 }}>
+        <Typography gutterBottom sx={{ wordBreak: 'break-word', maxWidth: '100%' }}>
+          Price Range: {formatPrice(filters.priceRange[0])} - {formatPrice(filters.priceRange[1])}
+        </Typography>
         <Slider
           value={filters.priceRange}
-          onChange={handlePriceChange}
+          onChange={handlePriceRangeChange}
           valueLabelDisplay="auto"
+          valueLabelFormat={formatPrice}
           min={0}
-          max={1000000}
-          step={10000}
+          max={PRICE_RANGE_MAX}
+          step={50000}
+          sx={{ maxWidth: '100%' }}
         />
       </Box>
 
-      <FormControl fullWidth sx={{ mb: 2 }}>
-        <InputLabel>Listing Type</InputLabel>
+      {/* Property Type Filter */}
+      <FormControl fullWidth sx={{ mb: 2, maxWidth: '100%' }}>
+        <InputLabel>Property Type</InputLabel>
         <Select
-          value={filters.listingType}
-          label="Listing Type"
-          onChange={handleListingTypeChange}
+          value={filters.propertyType}
+          label="Property Type"
+          onChange={handlePropertyTypeChange}
+          sx={{ maxWidth: '100%', minWidth: 0 }}
         >
-          <MenuItem value="all">All Listings</MenuItem>
-          <MenuItem value="on-market">On Market</MenuItem>
+          <MenuItem value="all">All Properties</MenuItem>
+          <MenuItem value="listed">Listed</MenuItem>
           <MenuItem value="off-market">Off Market</MenuItem>
         </Select>
       </FormControl>
 
-      <Typography variant="subtitle1" gutterBottom>
-        Water Issues
-      </Typography>
-      <FormGroup>
-        {waterIssues.map(issue => (
-          <FormControlLabel
-            key={issue}
-            control={
-              <Checkbox
-                checked={filters.waterIssues.includes(issue)}
-                onChange={handleIssueChange('waterIssues')}
-                name={issue}
-              />
-            }
-            label={issue}
-          />
-        ))}
+      {/* Water Connectivity Section (Replaces Access Requirements) */}
+      <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, wordBreak: 'break-word', maxWidth: '100%' }}>Water Connectivity</Typography>
+      <FormGroup sx={{ mb: 2, maxWidth: '100%', minWidth: 0 }}>
+        <FormControlLabel 
+          control={<Checkbox checked={filters.noWaterAccess || false} onChange={handleNoWaterAccessChange} />} 
+          label="No Water Access"
+          sx={{ maxWidth: '100%', '& .MuiFormControlLabel-label': { wordBreak: 'break-word' } }}
+        />
+        <FormControlLabel 
+          control={<Checkbox checked={filters.noWastewaterAccess || false} onChange={handleNoWastewaterAccessChange} />} 
+          label="No Wastewater Access"
+          sx={{ maxWidth: '100%', '& .MuiFormControlLabel-label': { wordBreak: 'break-word' } }}
+        />
       </FormGroup>
 
-      <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-        Wastewater Issues
-      </Typography>
-      <FormGroup>
-        {wastewaterIssues.map(issue => (
-          <FormControlLabel
-            key={issue}
+      {/* Specific Challenges Section (Replaces Issue Filters) */}
+      <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, wordBreak: 'break-word', maxWidth: '100%' }}>Specific Challenges</Typography>
+      <FormGroup sx={{ mb: 2, maxWidth: '100%', minWidth: 0 }}>
+        {Object.entries(SPECIFIC_CHALLENGES).map(([key, label]) => (
+          <FormControlLabel 
+            key={key} 
             control={
-              <Checkbox
-                checked={filters.wastewaterIssues.includes(issue)}
-                onChange={handleIssueChange('wastewaterIssues')}
-                name={issue}
+              <Checkbox 
+                checked={(filters.specificChallenges || []).includes(label)} 
+                onChange={handleSpecificChallengeChange(key)} 
               />
-            }
-            label={issue}
-          />
-        ))}
-      </FormGroup>
-
-      <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-        Environmental Issues
-      </Typography>
-      <FormGroup>
-        {environmentalIssues.map(issue => (
-          <FormControlLabel
-            key={issue}
-            control={
-              <Checkbox
-                checked={filters.environmentalIssues.includes(issue)}
-                onChange={handleIssueChange('environmentalIssues')}
-                name={issue}
-              />
-            }
-            label={issue}
+            } 
+            label={label}
+            sx={{ maxWidth: '100%', '& .MuiFormControlLabel-label': { wordBreak: 'break-word' } }}
           />
         ))}
       </FormGroup>
     </Paper>
   );
-}
+};
 
 export default FilterPanel; 

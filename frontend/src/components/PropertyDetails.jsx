@@ -85,7 +85,7 @@ function PropertyDetails() {
               }).format(property.price)}
             </Typography>
             <Typography variant="subtitle1">
-              Listing Type: {property.listingType}
+              Property Type: {property.listingType === 'on-market' ? 'Listed' : 'Off Market'}
             </Typography>
             <Typography variant="subtitle1">
               Last Updated: {new Date(property.lastUpdated).toLocaleDateString()}

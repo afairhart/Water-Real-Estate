@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { Property } = require('../models/Property');
+const Property = require('../models/Property');
 const HttpsProxyAgent = require('https-proxy-agent');
 const { parseAddress } = require('parse-address');
 
@@ -62,6 +62,18 @@ class PropertyScraper {
           address: '.property-address',
           details: '.property-details',
           waterInfo: '.water-info'
+        }
+      },
+      kingCounty: { // New source for King County
+        baseUrl: 'https://data.kingcounty.gov',
+        searchPath: '/resource/2kfd-2c3u.json', // SODA API endpoint
+        selectors: {
+          // These are placeholders and will need to be determined
+          listings: '.parcel-item', 
+          address: '.parcel-address',
+          details: '.parcel-details',
+          waterInfo: '.water-details', // Placeholder for water-related info
+          wastewaterInfo: '.wastewater-details' // Placeholder for wastewater-related info
         }
       }
     };
@@ -133,7 +145,8 @@ class PropertyScraper {
       // Scrape all sources concurrently
       const scrapingPromises = [
         this.scrapeSource('countyRecords', this.sources.countyRecords),
-        this.scrapeSource('taxAssessor', this.sources.taxAssessor)
+        this.scrapeSource('taxAssessor', this.sources.taxAssessor),
+        this.scrapeSource('kingCounty', this.sources.kingCounty)
       ];
 
       const results = await Promise.all(scrapingPromises);
@@ -151,21 +164,68 @@ class PropertyScraper {
 
   async scrapeSource(source, config) {
     try {
-      const response = await this.makeRequest(`${config.baseUrl}${config.searchPath}`);
-      const $ = cheerio.load(response.data);
+      let url = `${config.baseUrl}${config.searchPath}`;
+      // TODO: Implement specific query construction for King County SODA API
+      // For example, if searching by address:
+      // if (source === 'kingCounty' && this.searchAddress) {
+      //   const soqlQuery = `?$where=address_field LIKE '%${this.searchAddress.toUpperCase()}%'`;
+      //   url += soqlQuery;
+      // }
+
+      const response = await this.makeRequest(url);
+      const $ = cheerio.load(response.data); // This will change for API response
       const properties = [];
 
-      // Extract coordinates from the page
-      const coordinates = this.extractCoordinates($, element);
-
-      $(config.selectors.listings).each((i, element) => {
-        const property = this.parseProperty($, element, config.selectors, source);
-        if (property) {
-          // Add coordinates to the property
-          property.coordinates = coordinates;
-          properties.push(property);
+      if (source === 'kingCounty') {
+        // Handle JSON response from SODA API
+        const rawProperties = response.data; // Assuming response.data is an array of property objects
+        if (Array.isArray(rawProperties)) {
+          rawProperties.forEach(rawProperty => {
+            // TODO: Adapt this mapping to the actual SODA API fields
+            const property = {
+              address: {
+                street: rawProperty.address_street, // Placeholder field name
+                city: rawProperty.address_city,     // Placeholder field name
+                state: rawProperty.address_state,   // Placeholder field name
+                zipCode: rawProperty.address_zip    // Placeholder field name
+              },
+              listingType: 'off-market', // Assuming assessor data is off-market
+              price: parseInt(rawProperty.appraised_value), // Placeholder field name
+              // TODO: Find water/wastewater info fields
+              waterAccess: undefined,
+              wastewaterAccess: undefined,
+              waterIssues: [],
+              wastewaterIssues: [],
+              environmentalIssues: [], // TODO: Determine if this info is available
+              propertyDetails: {
+                acres: parseFloat(rawProperty.lot_acres), // Placeholder field name
+                zoning: rawProperty.zoning,             // Placeholder field name
+                improvements: [] // Placeholder field name (e.g., rawProperty.improvements_description)
+              },
+              coordinates: {
+                latitude: parseFloat(rawProperty.latitude),   // Placeholder field name
+                longitude: parseFloat(rawProperty.longitude) // Placeholder field name
+              },
+              lastUpdated: new Date(),
+              source,
+              sourceUrl: `${config.baseUrl}/Property-Assessments/King-County-Parcel-Viewer/2kfd-2c3u/row-${rawProperty.system_id}`, // Example, needs actual ID field
+              notes: JSON.stringify(rawProperty) // Store raw data for now
+            };
+            properties.push(property);
+          });
         }
-      });
+      } else {
+        // Existing Cheerio-based scraping for other sources
+        $(config.selectors.listings).each((i, element) => {
+          const coordinates = this.extractCoordinates($, element);
+          const property = this.parseProperty($, element, config.selectors, source);
+
+          if (property) {
+            property.coordinates = coordinates;
+            properties.push(property);
+          }
+        });
+      }
 
       return properties;
     } catch (error) {
