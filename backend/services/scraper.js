@@ -144,9 +144,9 @@ class PropertyScraper {
       
       // Scrape all sources concurrently
       const scrapingPromises = [
-        this.scrapeSource('countyRecords', this.sources.countyRecords),
-        this.scrapeSource('taxAssessor', this.sources.taxAssessor),
-        this.scrapeSource('kingCounty', this.sources.kingCounty)
+        // this.scrapeSource('countyRecords', this.sources.countyRecords), // Disabled due to broken URL
+        // this.scrapeSource('taxAssessor', this.sources.taxAssessor),     // Disabled due to broken URL
+        // this.scrapeSource('kingCounty', this.sources.kingCounty)       // Disabled due to incomplete implementation
       ];
 
       const results = await Promise.all(scrapingPromises);
@@ -217,14 +217,14 @@ class PropertyScraper {
       } else {
         // Existing Cheerio-based scraping for other sources
         $(config.selectors.listings).each((i, element) => {
-          const coordinates = this.extractCoordinates($, element);
-          const property = this.parseProperty($, element, config.selectors, source);
+      const coordinates = this.extractCoordinates($, element);
+        const property = this.parseProperty($, element, config.selectors, source);
 
-          if (property) {
-            property.coordinates = coordinates;
-            properties.push(property);
-          }
-        });
+        if (property) {
+          property.coordinates = coordinates;
+          properties.push(property);
+        }
+      });
       }
 
       return properties;

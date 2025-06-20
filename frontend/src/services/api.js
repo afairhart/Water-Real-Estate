@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { API_BASE_URL } from '../constants';
+
+const API_BASE_URL = 'http://localhost:3000/api';
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -48,7 +49,7 @@ export const propertiesAPI = {
    */
   getAll: async () => {
     try {
-      const response = await api.get('/api/properties');
+      const response = await api.get('/properties');
       return response.data || [];
     } catch (error) {
       console.error('Failed to fetch properties:', error);
@@ -63,7 +64,7 @@ export const propertiesAPI = {
    */
   getById: async (id) => {
     try {
-      const response = await api.get(`/api/properties/${id}`);
+      const response = await api.get(`/properties/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Failed to fetch property ${id}:`, error);
@@ -78,7 +79,7 @@ export const propertiesAPI = {
    */
   create: async (propertyData) => {
     try {
-      const response = await api.post('/api/properties', propertyData);
+      const response = await api.post('/properties', propertyData);
       return response.data;
     } catch (error) {
       console.error('Failed to create property:', error);
@@ -94,7 +95,7 @@ export const propertiesAPI = {
    */
   update: async (id, propertyData) => {
     try {
-      const response = await api.put(`/api/properties/${id}`, propertyData);
+      const response = await api.put(`/properties/${id}`, propertyData);
       return response.data;
     } catch (error) {
       console.error(`Failed to update property ${id}:`, error);
@@ -109,12 +110,27 @@ export const propertiesAPI = {
    */
   delete: async (id) => {
     try {
-      await api.delete(`/api/properties/${id}`);
+      await api.delete(`/properties/${id}`);
     } catch (error) {
       console.error(`Failed to delete property ${id}:`, error);
       throw new Error('Unable to delete property. Please try again later.');
     }
   }
+};
+
+export const getProperties = async () => {
+  const response = await api.get('/properties');
+  return response.data;
+};
+
+export const approveProperty = async (propertyId) => {
+  const response = await api.put(`/properties/${propertyId}/approve`);
+  return response.data;
+};
+
+export const deleteProperty = async (propertyId) => {
+  const response = await api.delete(`/properties/${propertyId}`);
+  return response.data;
 };
 
 export default api; 

@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
-const cron = require('node-cron');
+// const cron = require('node-cron'); // No longer needed
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const propertyScraper = require('./services/scraper');
+// const propertyScraper = require('./services/scraper'); // No longer needed
 const MapUsage = require('./models/MapUsage');
-const testProperties = require('./data/testProperties'); // Import test properties
+const propertyRoutes = require('./routes/properties');
 const { 
   STATE_ASSESSOR_URLS, 
   DEFAULT_ASSESSOR_URL,
@@ -16,116 +16,35 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+let genAI;
+if (process.env.GEMINI_API_KEY) {
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+} else {
+  console.warn('GEMINI_API_KEY not found in .env. Features using Gemini will be disabled.');
+}
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/water-fund';
+mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
 // Import Property model
 const Property = require('./models/Property');
 
-// API Routes
-app.get('/api/properties', async (req, res) => {
-  try {
-    const properties = await Property.find().sort({ lastUpdated: -1 });
-    console.log('Found properties:', properties.length);
-    
-    // Add assessor URLs to existing properties if they don't have them
-    const updatedProperties = properties.map(property => {
-      const propertyObj = property.toObject();
-      
-      // Add assessor URL based on the property's state/location
-      if (!propertyObj.assessorUrl) {
-        propertyObj.assessorUrl = STATE_ASSESSOR_URLS[propertyObj.address?.state] || DEFAULT_ASSESSOR_URL;
-      }
-      
-      return propertyObj;
-    });
-    
-    if (properties.length < MIN_PROPERTIES_THRESHOLD) { // Use constant for threshold
-      // Add realistic test properties for water investment
-      // testProperties array is now imported
+// Use property routes
+app.use('/api/properties', propertyRoutes);
 
-      // Add properties to database if they don't exist
-      for (const testProp of testProperties) {
-        const existingProp = await Property.findOne({ 
-          'address.street': testProp.address.street,
-          'address.city': testProp.address.city 
-        });
-        
-        if (!existingProp) {
-          const newProperty = new Property(testProp);
-          await newProperty.save();
-          console.log(`Added property: ${testProp.address.street}, ${testProp.address.city}, ${testProp.address.state}`);
-          
-          // Add assessor URL based on state
-          const propertyObj = newProperty.toObject();
-          propertyObj.assessorUrl = STATE_ASSESSOR_URLS[testProp.address.state] || DEFAULT_ASSESSOR_URL;
-          
-          updatedProperties.push(propertyObj);
-        }
-      }
-      
-      // Refresh the properties list to include newly added ones
-      const allProperties = await Property.find().sort({ lastUpdated: -1 });
-      const finalProperties = allProperties.map(property => {
-        const propertyObj = property.toObject();
-        
-        // Add assessor URL based on state
-        if (!propertyObj.assessorUrl) {
-          propertyObj.assessorUrl = STATE_ASSESSOR_URLS[propertyObj.address?.state] || DEFAULT_ASSESSOR_URL;
-        }
-        
-        return propertyObj;
-      });
-      
-      res.json(finalProperties);
-    } else {
-      res.json(updatedProperties);
-    }
-  } catch (error) {
-    console.error('Error fetching properties:', error);
-    res.status(500).json({ error: 'Failed to fetch properties' });
-  }
-});
-
-app.get('/api/properties/:id', async (req, res) => {
-  try {
-    const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
-    res.json(property);
-  } catch (error) {
-    console.error('Error fetching property:', error);
-    res.status(500).json({ error: 'Failed to fetch property' });
-  }
-});
-
-// Schedule property updates
-cron.schedule('*/15 * * * *', async () => {
-  console.log('Running scheduled property update...');
-  try {
-    // Scrape on-market properties
-    const onMarketProperties = await propertyScraper.scrapeOnMarketProperties();
-    console.log(`Scraped ${onMarketProperties.length} on-market properties`);
-
-    // Scrape off-market properties (to be implemented)
-    const offMarketProperties = await propertyScraper.scrapeOffMarketProperties();
-    console.log(`Scraped ${offMarketProperties.length} off-market properties`);
-
-    // TODO: Analyze properties using Gemini
-    // This will be implemented in the next step
-  } catch (error) {
-    console.error('Error in scheduled update:', error);
-  }
-});
+// The scheduled property update job has been completely removed.
+// The application will now rely on the static test data.
 
 // Map usage tracking endpoints
 app.get('/api/map/usage', async (req, res) => {

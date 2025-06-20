@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, AppBar, Toolbar, Typography, Box, Alert, CircularProgress } from '@mui/material';
-import { Routes, Route } from 'react-router-dom';
+import { CssBaseline, Container, Box } from '@mui/material';
 import PropertyMap from './components/PropertyMap';
-import PropertyDetails from './components/PropertyDetails';
 import FilterPanel from './components/FilterPanel';
-import { useProperties } from './hooks/useProperties';
 import { PRICE_RANGE_DEFAULT } from './constants';
+import PropertyScreeningTable from './components/PropertyScreeningTable';
 
 const theme = createTheme({
   palette: {
@@ -29,71 +27,48 @@ function App() {
     specificChallenges: []
   });
 
-  const { properties, loading, error, filteredProperties } = useProperties(filters);
-
-  useEffect(() => {
-    console.log('App.jsx: Filters updated', filters);
-  }, [filters]);
-
-  useEffect(() => {
-    console.log('App.jsx: Properties data updated', { 
-      rawProperties: properties.length,
-      filtered: filteredProperties.length,
-      loading,
-      error
-    });
-  }, [properties, filteredProperties, loading, error]);
-
-  if (error) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ p: 2 }}>
-          <Alert severity="error">
-            {error.message || 'Unknown error'}
-          </Alert>
-        </Box>
-      </ThemeProvider>
-    );
-  }
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AppBar position="fixed">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Western Water Properties
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mr: 2 }}>
-            <Typography variant="body1">
-              Properties: {filteredProperties.length}
-            </Typography>
+      <Container maxWidth="xl" disableGutters sx={{ height: '100vh' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          {/* Screening Table at the very top */}
+          <Box sx={{ 
+            height: '50vh',
+            minHeight: '200px',
+            maxHeight: '50vh',
+            overflow: 'auto',
+            borderBottom: '1px solid #eee',
+            background: '#fff',
+            zIndex: 2,
+            position: 'relative',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            transition: 'height 0.3s ease-in-out'
+          }}>
+            <PropertyScreeningTable />
           </Box>
-        </Toolbar>
-      </AppBar>
-      <Toolbar /> {/* Spacer for fixed AppBar */}
-      <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
-        <Box sx={{ width: '300px', p: 2, borderRight: '1px solid #ddd', overflowY: 'auto' }}>
-          <FilterPanel filters={filters} setFilters={setFilters} />
+          {/* Filter Panel below table */}
+          <Box sx={{ 
+            p: 2, 
+            borderBottom: '1px solid #eee', 
+            background: '#fafafa', 
+            zIndex: 1,
+            position: 'relative'
+          }}>
+            <FilterPanel filters={filters} setFilters={setFilters} />
+          </Box>
+          {/* Map fills the rest */}
+          <Box sx={{ 
+            flex: 1, 
+            minHeight: 0, 
+            position: 'relative', 
+            overflow: 'hidden',
+            background: '#f5f5f5'
+          }}>
+            <PropertyMap />
+          </Box>
         </Box>
-        <Box sx={{ flexGrow: 1, position: 'relative' }}>
-          {loading && !properties.length ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-              <Typography sx={{ml: 2}}>Loading properties...</Typography>
-            </Box>
-          ) : (
-            <Routes>
-              <Route 
-                path="/"
-                element={<PropertyMap properties={filteredProperties} loading={loading} />} 
-              />
-              <Route path="/property/:id" element={<PropertyDetails properties={properties} />} />
-            </Routes>
-          )}
-        </Box>
-      </Box>
+      </Container>
     </ThemeProvider>
   );
 }

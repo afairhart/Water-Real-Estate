@@ -61,6 +61,18 @@ const propertySchema = new mongoose.Schema({
         potentialValue: String,
         recommendedTechnologies: [String],
         confidence: Number
+    },
+    approved: {
+        type: Boolean,
+        default: false
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
     }
 });
 
